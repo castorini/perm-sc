@@ -1,6 +1,8 @@
 __all__ = ['ranks_from_preferences', 'sample_random_preferences', 'small_kendall_tau', 'sum_kendall_tau', 'spearmanr',
            'sum_spearmanr']
 
+from typing import Tuple
+
 import numba
 import numpy as np
 
@@ -32,12 +34,18 @@ def ranks_from_preferences(preferences: np.ndarray) -> np.ndarray:
 
 
 @numba.njit(parallel=True)
-def sum_spearmanr(X: np.ndarray, y: np.ndarray) -> int:
+def sum_spearmanr(X: np.ndarray, y: np.ndarray, cached_ranks: Tuple[np.ndarray, np.ndarray] = None) -> int:
     """Sums all Spearman's rho from `y` to each row vector in `X`"""
     rho = 0
 
+    if cached_ranks is None:
+        X_ranks = ranks_from_preferences(X)
+        y_ranks = ranks_from_preferences(y)
+    else:
+        X_ranks, y_ranks = cached_ranks
+
     for i in numba.prange(X.shape[0]):
-        rho += spearmanr(X[i], y)
+        rho += spearmanr(X[i], y, (X_ranks[i], y_ranks))
 
     return rho
 
@@ -54,13 +62,15 @@ def sum_kendall_tau(X: np.ndarray, y: np.ndarray) -> int:
 
 
 @numba.njit
-def spearmanr(a: np.ndarray, b: np.ndarray) -> float:
+def spearmanr(a: np.ndarray, b: np.ndarray,cached_ranks: Tuple[np.ndarray, np.ndarray] = None) -> float:
     """Computes the Spearman's rho between two preference arrays."""
-    a = ranks_from_preferences(a)
-    b = ranks_from_preferences(b)
-    rho = 6 * ((a - b) ** 2).sum() / (a.shape[0] * (a.shape[0] ** 2 - 1))
+    if cached_ranks is None:
+        a = ranks_from_preferences(a)
+        b = ranks_from_preferences(b)
+    else:
+        a, b = cached_ranks
 
-    return 1 - rho
+    return 1 - (6 * ((a - b) ** 2).sum() / (a.shape[0] * (a.shape[0] ** 2 - 1)))
 
 
 @numba.njit

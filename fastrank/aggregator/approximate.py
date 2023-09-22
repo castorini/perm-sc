@@ -1,10 +1,12 @@
 __all__ = ['BordaRankAggregator', 'LocalSearchRefiner']
 
+from typing import Callable
+
 import numba
 import numpy as np
 
 from .base import RankAggregator, AggregateRefiner
-from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr
+from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, sample_random_preferences
 
 
 class BordaRankAggregator(RankAggregator):
@@ -18,7 +20,8 @@ class BordaRankAggregator(RankAggregator):
 
 
 @numba.njit
-def _ls_refine(preferences: np.ndarray, candidate: np.ndarray, fn, method: str = 'min') -> np.ndarray:
+def _ls_refine(preferences, candidate, fn, method='min', max_iter=-1):
+    # type: (np.ndarray, np.ndarray, Callable[[np.ndarray, np.ndarray], float], str, int) -> np.ndarray
     improved = True
     other = candidate.copy()
     best_dist = fn(preferences, candidate)
@@ -28,9 +31,12 @@ def _ls_refine(preferences: np.ndarray, candidate: np.ndarray, fn, method: str =
     if is_max:
         best_dist = -best_dist
 
-    while improved:
+    rand_indices = np.arange(len(candidate))
+
+    while improved and max_iter != 0:
         improved = False
-        rand_indices = np.random.permutation(len(candidate))
+        np.random.shuffle(rand_indices)
+        max_iter -= 1
 
         for i in rand_indices:
             for j in range(i + 1, len(candidate)):
@@ -51,15 +57,16 @@ def _ls_refine(preferences: np.ndarray, candidate: np.ndarray, fn, method: str =
 
 
 class LocalSearchRefiner(AggregateRefiner):
-    def __init__(self, objective: str = 'kendalltau'):
+    def __init__(self, objective: str = 'kendalltau', max_iter: int = -1):
         self.objective = objective
+        self.max_iter = max_iter
 
     def refine(self, preferences: np.ndarray, candidate: np.ndarray) -> np.ndarray:
         match self.objective:
             case 'kendalltau':
-                return _ls_refine(preferences, candidate, sum_kendall_tau)
+                return _ls_refine(preferences, candidate, sum_kendall_tau, max_iter=self.max_iter)
             case 'spearmanr':
-                return _ls_refine(preferences, candidate, sum_spearmanr, 'max')
+                return _ls_refine(preferences, candidate, sum_spearmanr, 'max', max_iter=self.max_iter)
             case _:
                 raise ValueError(f'Objective {self.objective} is not supported.')
 
@@ -71,14 +78,14 @@ if __name__ == '__main__':
     print(real_proposal, refined_proposal)
     print(sum_kendall_tau(real_prefs, real_proposal), sum_kendall_tau(real_prefs, refined_proposal))
     real_proposal = BordaRankAggregator().aggregate(real_prefs)
-    print(real_proposal, LocalSearchRefiner('spearmanr').refine(real_prefs, real_proposal))
+    # print(real_proposal, LocalSearchRefiner('spearmanr').refine(real_prefs, real_proposal))
 
-    # import time
-    # a = time.time()
-    # prefs = sample_random_preferences(100, 100)
-    # proposal = BordaRankAggregator().aggregate(prefs)
-    # print(time.time() - a)
-    #
-    # a = time.time()
-    # print(LocalSearchRefiner().refine(prefs, proposal))
-    # print(time.time() - a)
+    import time
+    a = time.time()
+    prefs = sample_random_preferences(20, 50)
+    proposal = BordaRankAggregator().aggregate(prefs)
+    print(time.time() - a)
+
+    a = time.time()
+    print(LocalSearchRefiner(max_iter=3).refine(prefs, proposal))
+    print(time.time() - a)
