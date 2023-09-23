@@ -16,7 +16,30 @@ from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, samp
 
 class KemenyOptimalAggregator(RankAggregator):
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
-        pass
+        num_voters, num_cands = preferences.shape
+        X_graph = cdk_graph_from_preferences(preferences)
+        c = -1 * X_graph.ravel()
+
+        idx = lambda i, j: num_cands * i + j
+
+        # constraints for every pair
+        pairwise_constraints = np.zeros(((num_cands * (num_cands - 1)) / 2, num_cands ** 2))
+        for row, (i, j) in zip(pairwise_constraints, combinations(range(num_cands), 2)):
+            row[[idx(i, j), idx(j, i)]] = 1
+
+        # and for every cycle of length 3
+        triangle_constraints = np.zeros(((num_cands * (num_cands - 1) *
+                                          (num_cands - 2)),
+                                         num_cands ** 2))
+        for row, (i, j, k) in zip(triangle_constraints, permutations(range(num_cands), 3)):
+            row[[idx(i, j), idx(j, k), idx(k, i)]] = 1
+
+        constraint_rhs1 = np.ones(len(pairwise_constraints))  # ==
+        constraint_rhs2 = np.ones(len(triangle_constraints))  # >=
+        constraint_signs = np.hstack([np.zeros(len(pairwise_constraints)),  # ==
+                                      np.ones(len(triangle_constraints))])  # >=
+
+        linprog(c, triangle_constraints, constraint_rhs2, pairwise_constraints, constraint_rhs1, (0, 1))
 
 
 class BordaRankAggregator(RankAggregator):
@@ -142,14 +165,14 @@ if __name__ == '__main__':
     print(np.sum(LocalSearchRefiner().refine(prefs, proposal)))
     print(np.sum(KemenyLocalSearchRefiner().refine(prefs, proposal)))
 
-    prefs = sample_random_preferences(2, 100)
+    prefs = sample_random_preferences(10, 100)
     proposal = BordaRankAggregator().aggregate(prefs)
-    print(sum_kendall_tau(prefs, proposal))
+    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(proposal)))
 
     a = time.time()
-    print(sum_kendall_tau(prefs, LocalSearchRefiner().refine(prefs, proposal)))
+    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(LocalSearchRefiner().refine(prefs, proposal))))
     print(time.time() - a)
 
     a = time.time()
-    print(sum_kendall_tau(prefs, KemenyLocalSearchRefiner().refine(prefs, proposal)))
+    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(KemenyLocalSearchRefiner().refine(prefs, proposal))))
     print(time.time() - a)
