@@ -1,5 +1,6 @@
 __all__ = ['ranks_from_preferences', 'sample_random_preferences', 'small_kendall_tau', 'sum_kendall_tau', 'spearmanr',
-           'sum_spearmanr']
+           'sum_spearmanr', 'cdk_graph_from_preferences', 'cdk_graph_vertex_swap', 'cdk_graph_distance',
+           'preferences_from_cdk_graph', 'preferences_from_ranks']
 
 from typing import Tuple
 
@@ -7,7 +8,105 @@ import numba
 import numpy as np
 
 
+@numba.njit(parallel=True)
+def _cdk_graph_from_prefs_2d(preferences: np.ndarray):
+    ranks = _ranks_from_preferences_2d(preferences)
+    graph = np.zeros((ranks.shape[-1], ranks.shape[-1]))
+
+    for i in numba.prange(ranks.shape[-1]):
+        for j in range(i + 1, ranks.shape[-1]):
+            i_gt_j = np.sum(ranks[:, i] < ranks[:, j])  # times i is preferred over j
+            j_gt_i = ranks.shape[0] - i_gt_j  # times j is preferred over i
+
+            if i_gt_j > j_gt_i:  # i is preferred, so point from i to j
+                graph[i, j] = i_gt_j - j_gt_i
+            else:
+                graph[j, i] = j_gt_i - i_gt_j
+
+    return graph
+
+
 @numba.njit
+def _cdk_graph_from_prefs_1d(preferences: np.ndarray):
+    ranks = _ranks_from_preferences_1d(preferences)
+    graph = np.zeros((ranks.shape[-1], ranks.shape[-1]))
+
+    for i in numba.prange(ranks.shape[-1]):
+        for j in range(i + 1, ranks.shape[-1]):
+            if ranks[i] > ranks[j]:  # j is preferred, so point from j to i
+                graph[j, i] = 1
+            else:
+                graph[i, j] = 1
+
+    return graph
+
+
+def cdk_graph_from_preferences(preferences: np.ndarray) -> np.ndarray:
+    """
+    Takes in a preference matrix (or vector) and returns an adjacency matrix whose elements (i, j) have the weight
+    |#{i preferred to j} - #{j preferred to i}|, with edges pointing from the more to the less preferred candidate. We
+    call this the Conitzer-Davenport-Kalagnanam (CDK) graph.
+
+    See Also:
+        - https://vene.ro/blog/kemeny-young-optimal-rank-aggregation-in-python.html
+        - https://cdn.aaai.org/AAAI/2006/AAAI06-099.pdf
+    """
+    if preferences.ndim == 2:  # ndim breaks in numba
+        return _cdk_graph_from_prefs_2d(preferences)
+    elif preferences.ndim == 1:
+        return _cdk_graph_from_prefs_1d(preferences)
+
+    raise ValueError(f'Preferences must be a 1D or 2D array, got {preferences.ndim}D.')
+
+
+@numba.njit
+def cdk_graph_vertex_swap(graph: np.ndarray, i: int, j: int):
+    tmp_i = graph[:, i].copy()
+    graph[:, i] = graph[:, j]
+    graph[:, j] = tmp_i
+
+    tmp_i = graph[i, :].copy()
+    graph[i, :] = graph[j, :]
+    graph[j, :] = tmp_i
+
+
+@numba.njit
+def cdk_graph_distance(X_graph: np.ndarray, y_pred: np.ndarray) -> int:
+    """
+    Computes the Conitzer-Davenport-Kalagnanam (CDK) distance (our coined term) between two graphs, defined as the
+    weights of disagreed edges in https://cdn.aaai.org/AAAI/2006/AAAI06-099.pdf. `y_pred` should be a binary graph
+    associated with the candidate aggregate ranking. `X_graph` should be a weighted directed CDK graph computed from
+    :py:meth:`.graph_from_preferences`.
+    """
+    return np.sum(y_pred.T * X_graph)
+
+
+def preferences_from_cdk_graph(graph: np.ndarray) -> np.ndarray:
+    i_pref_counts = graph.sum(axis=1)  # sum of all edges pointing to i (i is preferred)
+    return np.argsort(i_pref_counts)[::-1]  # sort by most preferred
+
+
+@numba.njit
+def _ranks_from_preferences_2d(preferences: np.ndarray) -> np.ndarray:
+    ranks = np.empty_like(preferences)
+
+    for i in range(preferences.shape[0]):
+        for j in range(preferences.shape[1]):
+            ranks[i, preferences[i, j]] = j
+
+    return ranks
+
+
+@numba.njit
+def _ranks_from_preferences_1d(preferences: np.ndarray) -> np.ndarray:
+    ranks = np.empty_like(preferences)
+
+    for i in range(preferences.shape[0]):
+        ranks[preferences[i]] = i
+
+    return ranks
+
+
 def ranks_from_preferences(preferences: np.ndarray) -> np.ndarray:
     """
     Takes in a preference matrix (or vector) and returns a rank array of the same shape. The rank matrix has
@@ -20,53 +119,52 @@ def ranks_from_preferences(preferences: np.ndarray) -> np.ndarray:
     Returns:
         The rank matrix as a 1D or 2D array.
     """
-    ranks = np.empty_like(preferences)
-
     if preferences.ndim == 2:  # workaround for numba
-        for i in range(preferences.shape[0]):
-            for j in range(preferences.shape[1]):
-                ranks[i, preferences[i, j]] = j
+        return _ranks_from_preferences_2d(preferences)
     elif preferences.ndim == 1:
-        for i in range(preferences.shape[0]):
-            ranks[preferences[i]] = i
+        return _ranks_from_preferences_1d(preferences)
 
-    return ranks
+    raise ValueError(f'Preferences must be a 1D or 2D array, got {preferences.ndim}D.')
+
+
+def preferences_from_ranks(preferences: np.ndarray) -> np.ndarray:
+    return np.argsort(preferences)
 
 
 @numba.njit(parallel=True)
 def sum_spearmanr(X: np.ndarray, y: np.ndarray, cached_ranks: Tuple[np.ndarray, np.ndarray] = None) -> int:
     """Sums all Spearman's rho from `y` to each row vector in `X`"""
-    rho = 0
+    rhos = np.empty(X.shape[0])
 
     if cached_ranks is None:
-        X_ranks = ranks_from_preferences(X)
-        y_ranks = ranks_from_preferences(y)
+        X_ranks = _ranks_from_preferences_2d(X)
+        y_ranks = _ranks_from_preferences_1d(y)
     else:
         X_ranks, y_ranks = cached_ranks
 
     for i in numba.prange(X.shape[0]):
-        rho += spearmanr(X[i], y, (X_ranks[i], y_ranks))
+        rhos[i] = spearmanr(X[i], y, (X_ranks[i], y_ranks))
 
-    return rho
+    return rhos.sum()
 
 
 @numba.njit(parallel=True)
 def sum_kendall_tau(X: np.ndarray, y: np.ndarray) -> int:
     """Sums all the Kendall tau distances from `y` to each row vector in `X`"""
-    tau = 0
+    taus = np.empty(X.shape[0])
 
     for i in numba.prange(X.shape[0]):
-        tau += small_kendall_tau(X[i], y)
+        taus[i] = small_kendall_tau(X[i], y)
 
-    return tau
+    return taus.sum()
 
 
 @numba.njit
 def spearmanr(a: np.ndarray, b: np.ndarray,cached_ranks: Tuple[np.ndarray, np.ndarray] = None) -> float:
     """Computes the Spearman's rho between two preference arrays."""
     if cached_ranks is None:
-        a = ranks_from_preferences(a)
-        b = ranks_from_preferences(b)
+        a = _ranks_from_preferences_1d(a)
+        b = _ranks_from_preferences_1d(b)
     else:
         a, b = cached_ranks
 
@@ -101,14 +199,21 @@ def sample_random_preferences(m: int, n: int) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    rand_prefs = sample_random_preferences(10000, 500)
-    print(ranks_from_preferences(np.array(rand_prefs)))
+    rand_prefs = sample_random_preferences(5, 5)
+    # print(graph_from_preferences(np.array(rand_prefs)))
     import time
     a = time.time()
-    print(ranks_from_preferences(np.array(rand_prefs)))
+    # print(ranks_from_preferences(np.array(rand_prefs)))
+    graph = cdk_graph_from_preferences(rand_prefs[0])
+    print(preferences_from_cdk_graph(graph), rand_prefs[0])
+    print(graph)
+    cdk_graph_vertex_swap(graph, 1, 2)
+    cdk_graph_vertex_swap(graph, 3, 4)
+    print(cdk_graph_distance(graph, cdk_graph_from_preferences(rand_prefs[0])))
+    print(preferences_from_cdk_graph(graph), rand_prefs[0])
     print(time.time() - a)
-
-    print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
-    a = time.time()
-    print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
-    print(time.time() - a)
+    #
+    # print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
+    # a = time.time()
+    # print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
+    # print(time.time() - a)
