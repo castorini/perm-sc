@@ -1,12 +1,10 @@
-__all__ = ['BordaRankAggregator', 'LocalSearchRefiner', 'KemenyLocalSearchRefiner', 'KemenyOptimalAggregator']
+__all__ = ['BordaRankAggregator', 'LocalSearchRefiner', 'KemenyLocalSearchRefiner', 'RRFRankAggregator']
 
 import logging
-from itertools import combinations, permutations
 from typing import Callable
 
 import numba
 import numpy as np
-from scipy.optimize import linprog
 
 from .base import RankAggregator, AggregateRefiner
 from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, sample_random_preferences, \
@@ -14,39 +12,29 @@ from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, samp
     preferences_from_ranks
 
 
-class KemenyOptimalAggregator(RankAggregator):
+class RRFRankAggregator(RankAggregator):
+    """
+    Reciprocal rank fusion, a simple but effective meta-ranking algorithm first described in
+    https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf.
+    """
+    def __init__(self, k: int = 60):
+        self.k = k
+
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
-        num_voters, num_cands = preferences.shape
-        X_graph = cdk_graph_from_preferences(preferences)
-        c = -1 * X_graph.ravel()
+        def _compute_rrf(preferences: np.ndarray) -> np.ndarray:
+            ranks = ranks_from_preferences(preferences)
+            rrfs = 1 / (ranks + self.k)
 
-        idx = lambda i, j: num_cands * i + j
+            return rrfs.sum(axis=0)
 
-        # constraints for every pair
-        pairwise_constraints = np.zeros(((num_cands * (num_cands - 1)) / 2, num_cands ** 2))
-        for row, (i, j) in zip(pairwise_constraints, combinations(range(num_cands), 2)):
-            row[[idx(i, j), idx(j, i)]] = 1
-
-        # and for every cycle of length 3
-        triangle_constraints = np.zeros(((num_cands * (num_cands - 1) *
-                                          (num_cands - 2)),
-                                         num_cands ** 2))
-        for row, (i, j, k) in zip(triangle_constraints, permutations(range(num_cands), 3)):
-            row[[idx(i, j), idx(j, k), idx(k, i)]] = 1
-
-        constraint_rhs1 = np.ones(len(pairwise_constraints))  # ==
-        constraint_rhs2 = np.ones(len(triangle_constraints))  # >=
-        constraint_signs = np.hstack([np.zeros(len(pairwise_constraints)),  # ==
-                                      np.ones(len(triangle_constraints))])  # >=
-
-        linprog(c, triangle_constraints, constraint_rhs2, pairwise_constraints, constraint_rhs1, (0, 1))
+        return np.argsort(_compute_rrf(preferences))[::-1]
 
 
 class BordaRankAggregator(RankAggregator):
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
         def _compute_borda(preferences: np.ndarray) -> np.ndarray:
-            positions = ranks_from_preferences(preferences)
-            return positions.mean(axis=0)
+            ranks = ranks_from_preferences(preferences)
+            return ranks.mean(axis=0)
 
         borda_counts = _compute_borda(preferences)
         return np.argsort(borda_counts)
@@ -150,7 +138,9 @@ class KemenyLocalSearchRefiner(AggregateRefiner):
 if __name__ == '__main__':
     real_prefs = np.array([[1, 2, 0], [1, 2, 0], [1, 0, 2], [0, 1, 2], [1, 2, 0]])
     real_proposal = BordaRankAggregator().aggregate(real_prefs)
+    rrf_proposal = RRFRankAggregator().aggregate(real_prefs)
     refined_proposal = LocalSearchRefiner().refine(real_prefs, real_proposal)
+
     print(real_proposal, refined_proposal)
     print(sum_kendall_tau(real_prefs, real_proposal), sum_kendall_tau(real_prefs, refined_proposal))
     real_proposal = BordaRankAggregator().aggregate(real_prefs)
@@ -167,12 +157,20 @@ if __name__ == '__main__':
 
     prefs = sample_random_preferences(10, 100)
     proposal = BordaRankAggregator().aggregate(prefs)
-    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(proposal)))
+    rrf_proposal = RRFRankAggregator().aggregate(prefs)
+    # prefs = real_prefs
+    # proposal = real_proposal
+    print('Borda', sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(proposal)))
+    print('RRF', sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(rrf_proposal)))
 
-    a = time.time()
-    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(LocalSearchRefiner().refine(prefs, proposal))))
-    print(time.time() - a)
-
-    a = time.time()
-    print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(KemenyLocalSearchRefiner().refine(prefs, proposal))))
-    print(time.time() - a)
+    # a = time.time()
+    # ls_prefs = LocalSearchRefiner().refine(prefs, proposal)
+    # print(ls_prefs)
+    # print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(ls_prefs)))
+    # print(time.time() - a)
+    #
+    # a = time.time()
+    # kls_prefs = KemenyLocalSearchRefiner().refine(prefs, proposal)
+    # print(kls_prefs)
+    # print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(kls_prefs)))
+    # print(time.time() - a)
