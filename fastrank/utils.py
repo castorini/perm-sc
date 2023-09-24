@@ -1,6 +1,6 @@
 __all__ = ['ranks_from_preferences', 'sample_random_preferences', 'small_kendall_tau', 'sum_kendall_tau', 'spearmanr',
            'sum_spearmanr', 'cdk_graph_from_preferences', 'cdk_graph_vertex_swap', 'cdk_graph_distance',
-           'preferences_from_cdk_graph', 'preferences_from_ranks']
+           'preferences_from_cdk_graph', 'preferences_from_ranks', 'compute_preferences_kendall_tau']
 
 from typing import Tuple
 
@@ -159,6 +159,10 @@ def sum_kendall_tau(X: np.ndarray, y: np.ndarray) -> int:
     return taus.sum()
 
 
+def compute_preferences_kendall_tau(X_prefs: np.ndarray, y_prefs: np.ndarray) -> int:
+    return sum_kendall_tau(ranks_from_preferences(X_prefs), ranks_from_preferences(y_prefs))
+
+
 @numba.njit
 def spearmanr(a: np.ndarray, b: np.ndarray,cached_ranks: Tuple[np.ndarray, np.ndarray] = None) -> float:
     """Computes the Spearman's rho between two preference arrays."""
@@ -196,24 +200,3 @@ def sample_random_preferences(m: int, n: int) -> np.ndarray:
         np.random.shuffle(x)
 
     return np.array(rand_prefs)
-
-
-if __name__ == '__main__':
-    rand_prefs = sample_random_preferences(5, 5)
-    # print(graph_from_preferences(np.array(rand_prefs)))
-    import time
-    a = time.time()
-    # print(ranks_from_preferences(np.array(rand_prefs)))
-    graph = cdk_graph_from_preferences(rand_prefs[0])
-    print(preferences_from_cdk_graph(graph), rand_prefs[0])
-    print(graph)
-    cdk_graph_vertex_swap(graph, 1, 2)
-    cdk_graph_vertex_swap(graph, 3, 4)
-    print(cdk_graph_distance(graph, cdk_graph_from_preferences(rand_prefs[0])))
-    print(preferences_from_cdk_graph(graph), rand_prefs[0])
-    print(time.time() - a)
-    #
-    # print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
-    # a = time.time()
-    # print(small_kendall_tau(rand_prefs[0], rand_prefs[1]))
-    # print(time.time() - a)

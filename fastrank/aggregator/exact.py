@@ -1,35 +1,50 @@
+__all__ = ['KemenyOptimalAggregator']
+
 from itertools import combinations, permutations
 
 import numpy as np
-from scipy.optimize import linprog
+from pulp import LpProblem, LpVariable, LpMinimize, lpSum
 
 from .base import RankAggregator
-from ..utils import cdk_graph_from_preferences
+from ..utils import cdk_graph_from_preferences, preferences_from_cdk_graph
 
 
 class KemenyOptimalAggregator(RankAggregator):
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
-        num_voters, num_cands = preferences.shape
+        m, n = preferences.shape
         X_graph = cdk_graph_from_preferences(preferences)
-        c = -1 * X_graph.ravel()
 
-        idx = lambda i, j: num_cands * i + j
+        # Create the LP problem
+        prob = LpProblem('KemenyOptimalAggregator', LpMinimize)
+        vars_dict = {}
+        objectives = []
 
-        # constraints for every pair
-        pairwise_constraints = np.zeros(((num_cands * (num_cands - 1)) / 2, num_cands ** 2))
-        for row, (i, j) in zip(pairwise_constraints, combinations(range(num_cands), 2)):
-            row[[idx(i, j), idx(j, i)]] = 1
+        for i, j in combinations(range(n), 2):
+            x_ij = LpVariable(f'x{i},{j}', 0, 1, 'Binary')
+            x_ji = LpVariable(f'x{j},{i}', 0, 1, 'Binary')
+            vars_dict[(i, j)] = x_ij
+            vars_dict[(j, i)] = x_ji
+            objectives.append(X_graph[i, j] * x_ij + X_graph[j, i] * x_ji)
 
-        # and for every cycle of length 3
-        triangle_constraints = np.zeros(((num_cands * (num_cands - 1) *
-                                          (num_cands - 2)),
-                                         num_cands ** 2))
-        for row, (i, j, k) in zip(triangle_constraints, permutations(range(num_cands), 3)):
-            row[[idx(i, j), idx(j, k), idx(k, i)]] = 1
+        prob += (lpSum(objectives), 'Kemeny loss')
 
-        constraint_rhs1 = np.ones(len(pairwise_constraints))  # ==
-        constraint_rhs2 = np.ones(len(triangle_constraints))  # >=
-        constraint_signs = np.hstack([np.zeros(len(pairwise_constraints)),  # ==
-                                      np.ones(len(triangle_constraints))])  # >=
+        for i, j in combinations(range(n), 2):
+            prob += (vars_dict[(i, j)] + vars_dict[(j, i)] == 1, f'Existence x{i},{j}')
 
-        linprog(c, triangle_constraints, constraint_rhs2, pairwise_constraints, constraint_rhs1, (0, 1))
+        for i, j, k in permutations(range(n), 3):
+            if i == j or j == k or i == k:
+                continue
+
+            prob += (vars_dict[(i, j)] + vars_dict[(j, k)] + vars_dict[(k, i)] >= 1, f'Transitivity x{i},{j},{k}')
+
+        prob.solve()
+
+        # Extract the preferences from the solution
+        y_graph = np.zeros((n, n), dtype=int)
+
+        for (i, j), var in vars_dict.items():
+            y_graph[i, j] = int(var.varValue)
+
+        y_graph = y_graph.T  # LP problem is reversed
+
+        return preferences_from_cdk_graph(y_graph)

@@ -7,9 +7,8 @@ import numba
 import numpy as np
 
 from .base import RankAggregator, AggregateRefiner
-from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, sample_random_preferences, \
-    cdk_graph_from_preferences, cdk_graph_distance, cdk_graph_vertex_swap, preferences_from_cdk_graph, \
-    preferences_from_ranks
+from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, cdk_graph_from_preferences, \
+    cdk_graph_distance, cdk_graph_vertex_swap, preferences_from_cdk_graph, preferences_from_ranks
 
 
 class RRFRankAggregator(RankAggregator):
@@ -133,44 +132,3 @@ class KemenyLocalSearchRefiner(AggregateRefiner):
         X_graph = cdk_graph_from_preferences(preferences)
         y_graph = cdk_graph_from_preferences(candidate)
         return preferences_from_cdk_graph(_kemeny_ls_refine(X_graph, y_graph, max_iter=self.max_iter))
-
-
-if __name__ == '__main__':
-    real_prefs = np.array([[1, 2, 0], [1, 2, 0], [1, 0, 2], [0, 1, 2], [1, 2, 0]])
-    real_proposal = BordaRankAggregator().aggregate(real_prefs)
-    rrf_proposal = RRFRankAggregator().aggregate(real_prefs)
-    refined_proposal = LocalSearchRefiner().refine(real_prefs, real_proposal)
-
-    print(real_proposal, refined_proposal)
-    print(sum_kendall_tau(real_prefs, real_proposal), sum_kendall_tau(real_prefs, refined_proposal))
-    real_proposal = BordaRankAggregator().aggregate(real_prefs)
-    # print(real_proposal, LocalSearchRefiner('spearmanr').refine(real_prefs, real_proposal))
-
-    import time
-    a = time.time()
-    prefs = sample_random_preferences(10, 50)  # warmup
-    proposal = BordaRankAggregator().aggregate(prefs)
-    print(time.time() - a)
-
-    print(np.sum(LocalSearchRefiner().refine(prefs, proposal)))
-    print(np.sum(KemenyLocalSearchRefiner().refine(prefs, proposal)))
-
-    prefs = sample_random_preferences(10, 100)
-    proposal = BordaRankAggregator().aggregate(prefs)
-    rrf_proposal = RRFRankAggregator().aggregate(prefs)
-    # prefs = real_prefs
-    # proposal = real_proposal
-    print('Borda', sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(proposal)))
-    print('RRF', sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(rrf_proposal)))
-
-    # a = time.time()
-    # ls_prefs = LocalSearchRefiner().refine(prefs, proposal)
-    # print(ls_prefs)
-    # print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(ls_prefs)))
-    # print(time.time() - a)
-    #
-    # a = time.time()
-    # kls_prefs = KemenyLocalSearchRefiner().refine(prefs, proposal)
-    # print(kls_prefs)
-    # print(sum_kendall_tau(ranks_from_preferences(prefs), ranks_from_preferences(kls_prefs)))
-    # print(time.time() - a)
