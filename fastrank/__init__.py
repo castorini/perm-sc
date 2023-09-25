@@ -1,5 +1,6 @@
 from ._version import *
 from .aggregator import *
+from .openai import *
 from .utils import *
 
 try:
