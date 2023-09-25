@@ -7,6 +7,7 @@ from typing import List, Type, Any
 
 from openai import ChatCompletion
 from openai.api_resources.abstract.engine_api_resource import EngineAPIResource
+from tqdm import tqdm
 
 
 @dataclass
@@ -73,7 +74,7 @@ class EngineAPIResourcePool:
 
         results = []
 
-        for _ in kwargs[self.batch_key]:
+        for _ in tqdm(kwargs[self.batch_key]):
             results.append(self.result_queue.get())
 
         return [result for _, result in sorted(results, key=lambda x: x[0])]
