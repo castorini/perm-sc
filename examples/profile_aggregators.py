@@ -8,7 +8,7 @@ from fastrank.aggregator.exact import KemenyOptimalAggregator
 
 
 def main():
-    prefs = np.array([[1, 2, 0], [1, 2, 0], [1, 2, 0], [1, 2, 0], [0, 1, 2]])
+    prefs = np.array([[-1, 2, 0, -1], [1, -1, -1, 3], [-1, 2, -1, 3]])
     proposal = BordaRankAggregator().aggregate(prefs)
 
     y_optimal = KemenyOptimalAggregator().aggregate(prefs)

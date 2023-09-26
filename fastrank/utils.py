@@ -14,9 +14,12 @@ def _cdk_graph_from_prefs_2d(preferences: np.ndarray):
     graph = np.zeros((ranks.shape[-1], ranks.shape[-1]))
 
     for i in numba.prange(ranks.shape[-1]):
+        i_mask = ranks[:, i] != -1  # missing values are -1
+
         for j in range(i + 1, ranks.shape[-1]):
-            i_gt_j = np.sum(ranks[:, i] < ranks[:, j])  # times i is preferred over j
-            j_gt_i = ranks.shape[0] - i_gt_j  # times j is preferred over i
+            mask = i_mask & (ranks[:, j] != -1)  # missing values are -1
+            i_gt_j = np.sum((ranks[:, i] < ranks[:, j]) & mask)  # times i is preferred over j
+            j_gt_i = np.sum((ranks[:, i] > ranks[:, j]) & mask)  # times j is preferred over i
 
             if i_gt_j > j_gt_i:  # i is preferred, so point from i to j
                 graph[i, j] = i_gt_j - j_gt_i
@@ -46,6 +49,11 @@ def cdk_graph_from_preferences(preferences: np.ndarray) -> np.ndarray:
     Takes in a preference matrix (or vector) and returns an adjacency matrix whose elements (i, j) have the weight
     |#{i preferred to j} - #{j preferred to i}|, with edges pointing from the more to the less preferred candidate. We
     call this the Conitzer-Davenport-Kalagnanam (CDK) graph.
+
+    The preference matrix can be _partial_, meaning that some preferences are missing. We denote missing elements with
+    -1, e.g., [[2, 0, -1, -1]] means that item 2 is the most preferred, item 0 is the second, and the rest are unknown.
+    However, the graph resulting from this input is noninvertible for obvious reasons. Attempting to convert it back to
+    a preference matrix will result in a matrix with random values in unknown positions.
 
     See Also:
         - https://vene.ro/blog/kemeny-young-optimal-rank-aggregation-in-python.html
@@ -88,21 +96,27 @@ def preferences_from_cdk_graph(graph: np.ndarray) -> np.ndarray:
 
 @numba.njit
 def _ranks_from_preferences_2d(preferences: np.ndarray) -> np.ndarray:
-    ranks = np.empty_like(preferences)
+    ranks = np.full_like(preferences, -1)
 
     for i in range(preferences.shape[0]):
         for j in range(preferences.shape[1]):
-            ranks[i, preferences[i, j]] = j
+            pref = preferences[i, j]
+
+            if pref != -1:  # -1 means missing
+                ranks[i, pref] = j
 
     return ranks
 
 
 @numba.njit
 def _ranks_from_preferences_1d(preferences: np.ndarray) -> np.ndarray:
-    ranks = np.empty_like(preferences)
+    ranks = np.full_like(preferences, -1)
 
     for i in range(preferences.shape[0]):
-        ranks[preferences[i]] = i
+        pref = preferences[i]
+
+        if pref != -1:
+            ranks[pref] = i
 
     return ranks
 
