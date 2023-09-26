@@ -22,9 +22,8 @@ class RRFRankAggregator(RankAggregator):
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
         def _compute_rrf(preferences: np.ndarray) -> np.ndarray:
             ranks = ranks_from_preferences(preferences)
-            rrfs = 1 / (ranks + self.k)
-
-            return rrfs.sum(axis=0)
+            ranks = [(1 / (x[x != -1] + self.k)).mean() for x in ranks.T]
+            return np.array(ranks)
 
         return np.argsort(_compute_rrf(preferences))[::-1]
 
