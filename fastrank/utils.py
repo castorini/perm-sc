@@ -52,8 +52,8 @@ def cdk_graph_from_preferences(preferences: np.ndarray) -> np.ndarray:
 
     The preference matrix can be _partial_, meaning that some preferences are missing. We denote missing elements with
     -1, e.g., [[2, 0, -1, -1]] means that item 2 is the most preferred, item 0 is the second, and the rest are unknown.
-    However, the graph resulting from this input is noninvertible for obvious reasons. Attempting to convert it back to
-    a preference matrix will result in a matrix with random values in unknown positions.
+    However, the CDK graph resulting from this input is noninvertible for obvious reasons. Attempting to convert it back
+    to a preference matrix will result in a matrix with random values in the unknown positions.
 
     See Also:
         - https://vene.ro/blog/kemeny-young-optimal-rank-aggregation-in-python.html
@@ -201,7 +201,8 @@ def small_kendall_tau(a: np.ndarray, b: np.ndarray) -> int:
 
     for i in range(n):
         for j in range(i + 1, n):
-            if (a[i] < a[j] and b[i] > b[j]) or (a[i] > a[j] and b[i] < b[j]):
+            if ((a[i] < a[j] and b[i] > b[j]) or (a[i] > a[j] and b[i] < b[j])) and \
+                    a[i] != -1 and b[i] != -1 and a[j] != -1 and b[j] != -1:  # check for missing values
                 tau += 1
 
     return tau

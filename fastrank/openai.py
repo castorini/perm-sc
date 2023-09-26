@@ -40,11 +40,13 @@ class EngineAPIResourcePool:
 
     def _entrypoint(self):
         while work := self.work_queue.get():
-            config = self.model_queue.get()
             idx, args, kwargs = work
+            delay = 2
 
-            try:
-                while True:
+            while True:
+                try:
+                    config = self.model_queue.get()
+
                     try:
                         result = self.openai_resource_class.create(
                             *args,
@@ -56,15 +58,18 @@ class EngineAPIResourcePool:
                             model=config.model_name,
                             **kwargs
                         )
-                        break
-                    except:
-                        import traceback
-                        traceback.print_exc()
-                        time.sleep(5)
+                    finally:
+                        self.model_queue.put(config)
 
-                self.result_queue.put((idx, result))
-            finally:
-                self.model_queue.put(config)
+                    delay = 2
+                    break
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    time.sleep(delay)
+                    delay = min(delay * 2, 30)
+
+            self.result_queue.put((idx, result))
 
     def create_batch(self, *args, **kwargs) -> List[Any]:
         for idx, kwarg in enumerate(kwargs[self.batch_key]):

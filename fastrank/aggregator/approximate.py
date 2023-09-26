@@ -33,7 +33,8 @@ class BordaRankAggregator(RankAggregator):
     def aggregate(self, preferences: np.ndarray) -> np.ndarray:
         def _compute_borda(preferences: np.ndarray) -> np.ndarray:
             ranks = ranks_from_preferences(preferences)
-            return ranks.mean(axis=0)
+            ranks = [x[x != -1].mean() for x in ranks.T]
+            return np.array(ranks)
 
         borda_counts = _compute_borda(preferences)
         return np.argsort(borda_counts)
