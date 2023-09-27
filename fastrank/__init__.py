@@ -1,11 +1,6 @@
 from ._version import *
 from .aggregator import *
-from .openai import *
-from .utils import *
-
-try:
-    import beir  # Try to import BEIR
-    from .llm import *
-except ImportError:
-    import logging
-    logging.warning('fastrank[llm] dependencies not installed. Some auxiliary modules will not be available.')
+from .llm import *
+from fastrank.aggregator.utils import *
+from .data import *
+from .types import *

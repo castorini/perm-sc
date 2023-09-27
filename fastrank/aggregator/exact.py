@@ -6,7 +6,7 @@ import numpy as np
 from pulp import LpProblem, LpVariable, LpMinimize, lpSum
 
 from .base import RankAggregator
-from ..utils import cdk_graph_from_preferences, preferences_from_cdk_graph
+from .utils import cdk_graph_from_preferences, preferences_from_cdk_graph
 
 
 class KemenyOptimalAggregator(RankAggregator):

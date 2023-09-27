@@ -12,9 +12,4 @@ setuptools.setup(
     install_requires=open('requirements.txt').read().strip().splitlines(),
     packages=setuptools.find_packages(),
     python_requires='>=3.10',
-    extras_require={
-        'llm': [
-            'beir==2.0.0'
-        ]
-    }
 )

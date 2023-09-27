@@ -7,7 +7,7 @@ import numba
 import numpy as np
 
 from .base import RankAggregator, AggregateRefiner
-from ..utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, cdk_graph_from_preferences, \
+from .utils import ranks_from_preferences, sum_kendall_tau, sum_spearmanr, cdk_graph_from_preferences, \
     cdk_graph_distance, cdk_graph_vertex_swap, preferences_from_cdk_graph, preferences_from_ranks
 
 

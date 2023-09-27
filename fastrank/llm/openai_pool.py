@@ -38,6 +38,10 @@ class EngineAPIResourcePool:
         for process in self.processes:
             process.start()
 
+    def stop(self):
+        for process in self.processes:
+            process.kill()
+
     def _entrypoint(self):
         while work := self.work_queue.get():
             idx, args, kwargs = work
