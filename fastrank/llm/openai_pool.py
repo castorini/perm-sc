@@ -25,6 +25,7 @@ class EngineAPIResourcePool:
     batch_key: str = None
 
     def __init__(self, configs: List[OpenAIConfig]):
+        self.model_name = configs[0].model_name
         self.configs = configs
         self.model_queue = mp.Queue()
 
