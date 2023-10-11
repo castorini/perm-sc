@@ -8,7 +8,7 @@ comprises two main stages:
 1. **Sample**: we collect a sample of LLM output rankings by randomly shuffling the input list in the prompt. 
 2. **Aggregate**: we combine these rankings into the one that minimizes the Kendall tau distance to all rankings.
 
-The library focuses on the more technically involved aggregate step. We implement rank reciprocal fusion, the
+The library focuses on the more technically involved aggregate step. We implement reciprocal rank fusion, the
 Kemeny-Young method, Borda aggregation, and local search refinement.
 
 ## Getting Started
