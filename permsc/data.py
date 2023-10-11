@@ -143,7 +143,7 @@ class GSM8KSortDataset(RankingDataset):
         return len(self.question_sents_list)
 
     def load_example(self, idx: int) -> RankingExample:
-        sentences = sorted(self.question_sents_list[idx])
+        sentences = self.question_sents_list[idx]
         hits = [Item(content=sent, score=1 / (idx + 1)) for idx, sent in enumerate(sentences)]
 
         return RankingExample(hits=hits)
@@ -159,7 +159,7 @@ class WordSortDataset(RankingDataset):
         return len(self.df)
 
     def load_example(self, idx: int) -> RankingExample:
-        words = self.df.iloc[idx].word_samples
+        words = sorted(self.df.iloc[idx].word_samples)
         hits = [Item(content=word, score=1 / (idx + 1)) for idx, word in enumerate(words)]
 
         return RankingExample(hits=hits)
