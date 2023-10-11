@@ -5,6 +5,7 @@ import multiprocessing as mp
 import time
 from typing import List, Type, Any
 
+import openai
 from openai import ChatCompletion
 from openai.api_resources.abstract.engine_api_resource import EngineAPIResource
 from tqdm import tqdm
@@ -17,7 +18,7 @@ class OpenAIConfig:
     api_base: str = ''
     api_key: str = ''
     api_version: str = '2023-07-01-preview'
-    api_type: str = 'azure'
+    api_type: str = 'azure'  # one of 'azure', 'litellm', or 'openai'
 
 
 class EngineAPIResourcePool:
@@ -53,16 +54,21 @@ class EngineAPIResourcePool:
                     config = self.model_queue.get()
 
                     try:
-                        result = self.openai_resource_class.create(
-                            *args,
-                            api_key=config.api_key,
-                            api_base=config.api_base,
-                            api_version=config.api_version,
-                            api_type=config.api_type,
-                            engine=config.deployment_name,
-                            model=config.model_name,
-                            **kwargs
-                        )
+                        if config.api_type == 'litellm':
+                            openai.api_key = 'litellm'
+                            openai.api_base = config.api_base
+                            result = openai.ChatCompletion.create(*args, model='litellm', **kwargs)
+                        else:
+                            result = self.openai_resource_class.create(
+                                *args,
+                                api_key=config.api_key,
+                                api_base=config.api_base,
+                                api_version=config.api_version,
+                                api_type=config.api_type,
+                                engine=config.deployment_name,
+                                model=config.model_name,
+                                **kwargs
+                            )
                     finally:
                         self.model_queue.put(config)
 

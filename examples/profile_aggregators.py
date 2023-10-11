@@ -2,9 +2,9 @@ import cProfile
 
 import numpy as np
 
-from fastrank import BordaRankAggregator, RRFRankAggregator, LocalSearchRefiner, sum_kendall_tau, \
+from permsc import BordaRankAggregator, RRFRankAggregator, LocalSearchRefiner, sum_kendall_tau, \
     sample_random_preferences, KemenyLocalSearchRefiner, ranks_from_preferences, compute_preferences_kendall_tau
-from fastrank.aggregator.exact import KemenyOptimalAggregator
+from permsc.aggregator.exact import KemenyOptimalAggregator
 
 
 def main():

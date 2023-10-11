@@ -2,13 +2,13 @@ import setuptools
 
 
 setuptools.setup(
-    name='fastrank',
-    version=eval(open('fastrank/_version.py').read().strip().split('=')[1]),
+    name='permsc',
+    version=eval(open('permsc/_version.py').read().strip().split('=')[1]),
     author='Raphael Tang',
     license='MIT',
-    url='https://github.com/castorini/fastrank',
+    url='https://github.com/castorini/perm-sc',
     author_email='r33tang@uwaterloo.ca',
-    description='FastRank: A fast rank aggregation library.',
+    description='Official codebase for permutation self-consistency.',
     install_requires=open('requirements.txt').read().strip().splitlines(),
     packages=setuptools.find_packages(),
     python_requires='>=3.10',
