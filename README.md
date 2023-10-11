@@ -1,6 +1,6 @@
 # Permutation Self-Consistency
 
-This is the official Python library for the permutation self-consistency method.
+This is the official Python library for permutation self-consistency.
 Described in [the paper](), our self-consistency-inspired approach improves
 listwise ranking in black-box large language models (LLMs) at inference time.
 Like the original [self-consistency decoding strategy](https://research.google/pubs/pub52081/), our core algorithm
