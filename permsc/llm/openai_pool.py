@@ -14,10 +14,10 @@ from tqdm import tqdm
 @dataclass
 class OpenAIConfig:
     deployment_name: str = ''
-    model_name: str = 'gpt-3.5-turbo-16k'
+    model_name: str = 'gpt-3.5-turbo'
     api_base: str = ''
     api_key: str = ''
-    api_version: str = '2023-07-01-preview'
+    api_version: str = ''
     api_type: str = 'azure'  # one of 'azure', 'litellm', or 'openai'
 
 
@@ -59,16 +59,19 @@ class EngineAPIResourcePool:
                             openai.api_base = config.api_base
                             result = openai.ChatCompletion.create(*args, model='litellm', **kwargs)
                         else:
-                            result = self.openai_resource_class.create(
-                                *args,
+                            api_kwargs = dict(
                                 api_key=config.api_key,
                                 api_base=config.api_base,
                                 api_version=config.api_version,
                                 api_type=config.api_type,
                                 engine=config.deployment_name,
                                 model=config.model_name,
-                                **kwargs
                             )
+
+                            if config.api_type == 'openai':
+                                del api_kwargs['engine']  # OpenAI.com doesn't use engine
+
+                            result = self.openai_resource_class.create(*args, **api_kwargs, **kwargs)
                     finally:
                         self.model_queue.put(config)
 

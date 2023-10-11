@@ -143,7 +143,7 @@ class GSM8KSortDataset(RankingDataset):
         return len(self.question_sents_list)
 
     def load_example(self, idx: int) -> RankingExample:
-        sentences = self.question_sents_list[idx]
+        sentences = sorted(self.question_sents_list[idx])
         hits = [Item(content=sent, score=1 / (idx + 1)) for idx, sent in enumerate(sentences)]
 
         return RankingExample(hits=hits)
