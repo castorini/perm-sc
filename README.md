@@ -3,10 +3,13 @@
 This is the official Python library for the permutation self-consistency method.
 Described in [the paper](), our self-consistency-inspired approach improves
 listwise ranking in black-box large language models (LLMs) at inference time.
-Like the original [self-consistency decoding strategy](), our core algorithm
+Like the original [self-consistency decoding strategy](https://research.google/pubs/pub52081/), our core algorithm
 comprises two main stages:
 1. **Sample**: we collect a sample of LLM output rankings by randomly shuffling the input list in the prompt. 
 2. **Aggregate**: we combine these rankings into the one that minimizes the Kendall tau distance to all rankings.
+
+The library focuses on the more technically involved aggregate step. We implement rank reciprocal fusion, the
+Kemeny-Young method, Borda aggregation, and local search refinement.
 
 ## Getting Started
 
@@ -52,7 +55,9 @@ print(sum_kendall_tau(ranks, y_optimal_ranks))  # the sum of the Kendall tau dis
 
 ## Paper Replication
 
-For reproducing the sorting tasks, see `notebooks/sorting-tasks.ipynb`.
+For reproducing the sorting tasks, see `notebooks/sorting-tasks.ipynb`. Our passage ranking
+implementation will be checked in shortly. In the meantime, try extending the RankGPT
+codebase with this one!
 
 ## Citation
 ```
