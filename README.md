@@ -1,7 +1,7 @@
 # Permutation Self-Consistency
 
 This is the official Python library for permutation self-consistency.
-Described in [the paper](), our self-consistency-inspired approach improves
+Described in [the paper](https://arxiv.org/abs/2310.07712), our self-consistency-inspired approach improves
 listwise ranking in black-box large language models (LLMs) at inference time.
 Like the original [self-consistency decoding strategy](https://research.google/pubs/pub52081/), our core algorithm
 comprises two main stages:
@@ -25,13 +25,13 @@ git clone ssh://git@github.com/castorini/perm-sc
 ```
 
 ### Using the Library
-The library works with three ways to specify permutations: preference arrays, rank arrays,
-and graphs. Preference arrays are the most direct construct from LLMs, with the array 
+The library uses three ways to specify permutations: preference arrays, rank arrays,
+and graphs. Preference arrays are the most direct construct for LLMs, with the array 
 `[2, 0, 1, 3]` representing the preference of item 2 over item 0 over 1 over 3.
 Since the LLM outputs these arrays without any processing, they are the most common
-representation in its public interface. Rank arrays are an index-based alternative used in some operations, 
+representation in the library's public interface. Rank arrays are an index-based alternative used in some operations, 
 such as the Kendall tau calculation. They are defined simply as
-`x[i] = rank of element i`, so the preference array `[2, 0, 1, 3]` equates the rank array
+`x[i] = rank of element i`, so the preference array `[2, 0, 1, 3]` equates to the rank array
 `[1, 2, 0, 3]`. Graphs are more complicated and specific to the Kemeny optimal aggregation
 and local search refinement algorithms. Thus, they are abstracted away from the public interface.
 
@@ -61,5 +61,10 @@ codebase with this one!
 
 ## Citation
 ```
-
+@article{tang2023found,
+  title={Found in the Middle: Permutation Self-Consistency Improves Listwise Ranking in Large Language Models},
+  author={Tang, Raphael and Zhang, Xinyu and Ma, Xueguang and Lin, Jimmy and Ture, Ferhan},
+  journal={arXiv:2310.07712},
+  year={2023}
+}
 ```
