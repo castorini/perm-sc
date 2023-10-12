@@ -29,10 +29,10 @@ The library works with three ways to specify permutations: preference arrays, ra
 and graphs. Preference arrays are the most direct construct from LLMs, with the array 
 `[2, 0, 1, 3]` representing the preference of item 2 over item 0 over 1 over 3.
 Since the LLM outputs these arrays without any processing, they are the most common
-representation in its public interface. Rank arrays are an index-based alternative more
-convenient for some operations, such as the Kendall tau calculation. They are defined simply as
-`x[i] = rank of element i`, so the preference array `[2, 0, 1, 3]` would be the rank array
-`[1, 2, 0, 3]`. Graphs are much more complicated and specific to the Kemeny optimal aggregation
+representation in its public interface. Rank arrays are an index-based alternative used in some operations, 
+such as the Kendall tau calculation. They are defined simply as
+`x[i] = rank of element i`, so the preference array `[2, 0, 1, 3]` equates the rank array
+`[1, 2, 0, 3]`. Graphs are more complicated and specific to the Kemeny optimal aggregation
 and local search refinement algorithms. Thus, they are abstracted away from the public interface.
 
 Both rank and preference arrays are zero-indexed. The library also denotes missing items
