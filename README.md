@@ -1,4 +1,7 @@
 # Permutation Self-Consistency
+[![Citation](https://img.shields.io/badge/Citation-arXiv-orange.svg)](https://github.com/castorini/perm-sc#citation) [![PyPi version](https://badgen.net/pypi/v/permsc?color=blue)](https://pypi.org/project/permsc)
+
+![example.png](example.png)
 
 This is the official Python library for permutation self-consistency.
 Described in [the paper](https://arxiv.org/abs/2310.07712), our self-consistency-inspired approach improves
