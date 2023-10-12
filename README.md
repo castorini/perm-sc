@@ -17,7 +17,7 @@ implement reciprocal rank fusion, the Kemeny-Young method, Borda aggregation, an
 ## Getting Started
 
 ### Installation
-If you only need the library, run
+If you need the library only, run
 ```
 pip install permsc
 ```
