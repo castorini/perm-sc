@@ -1,5 +1,5 @@
 # Permutation Self-Consistency
-[![Citation](https://img.shields.io/badge/Citation-arXiv-orange.svg)](https://github.com/castorini/perm-sc#citation) [![PyPi version](https://badgen.net/pypi/v/permsc?color=blue)](https://pypi.org/project/permsc)
+[![HF Spaces](https://img.shields.io/badge/HuggingFace%20Space-online-green.svg)](https://huggingface.co/spaces/castorini/perm-sc) [![Citation](https://img.shields.io/badge/Citation-arXiv-orange.svg)](https://github.com/castorini/perm-sc#citation) [![PyPi version](https://badgen.net/pypi/v/permsc?color=blue)](https://pypi.org/project/permsc) [![Downloads](https://static.pepy.tech/badge/permsc)](https://pepy.tech/project/permsc)
 
 ![example.png](example.png)
 
