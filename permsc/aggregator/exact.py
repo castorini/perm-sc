@@ -10,21 +10,20 @@ from .utils import cdk_graph_from_preferences, preferences_from_cdk_graph
 
 
 class KemenyOptimalAggregator(RankAggregator):
-    def aggregate(self, preferences: np.ndarray) -> np.ndarray:
-        m, n = preferences.shape
-        X_graph = cdk_graph_from_preferences(preferences)
+    def solve_from_graph(self, cdk_graph: np.ndarray):
 
         # Create the LP problem
         prob = LpProblem('KemenyOptimalAggregator', LpMinimize)
         vars_dict = {}
         objectives = []
+        n = cdk_graph.shape[-1]
 
         for i, j in combinations(range(n), 2):
             x_ij = LpVariable(f'x{i},{j}', 0, 1, 'Binary')
             x_ji = LpVariable(f'x{j},{i}', 0, 1, 'Binary')
             vars_dict[(i, j)] = x_ij
             vars_dict[(j, i)] = x_ji
-            objectives.append(X_graph[i, j] * x_ij + X_graph[j, i] * x_ji)
+            objectives.append(cdk_graph[i, j] * x_ij + cdk_graph[j, i] * x_ji)
 
         prob += (lpSum(objectives), 'Kemeny loss')
 
@@ -48,3 +47,7 @@ class KemenyOptimalAggregator(RankAggregator):
         y_graph = y_graph.T  # LP problem is reversed
 
         return preferences_from_cdk_graph(y_graph)
+
+    def aggregate(self, preferences: np.ndarray) -> np.ndarray:
+        cdk_graph = cdk_graph_from_preferences(preferences)
+        return self.solve_from_graph(cdk_graph)
