@@ -1,12 +1,13 @@
 __all__ = ['ChatCompletionPool', 'OpenAIConfig']
 
+import logging
 from dataclasses import dataclass
 import multiprocessing as mp
 import time
 from typing import List, Type, Any
 
 import openai
-from openai import ChatCompletion
+from openai import ChatCompletion, InvalidRequestError
 from openai.api_resources.abstract.engine_api_resource import EngineAPIResource
 from tqdm import tqdm
 
@@ -77,15 +78,23 @@ class EngineAPIResourcePool:
 
                     delay = 2
                     break
+                except InvalidRequestError:
+                    result = None
+                    break
                 except:
                     import traceback
                     traceback.print_exc()
                     time.sleep(delay)
                     delay = min(delay * 2, 30)
 
+                    if delay == 30:
+                        logging.error('Giving up this request.')
+                        result = None
+                        break
+
             self.result_queue.put((idx, result))
 
-    def create_batch(self, *args, **kwargs) -> List[Any]:
+    def create_batch(self, *args, callback=None, **kwargs) -> List[Any]:
         for idx, kwarg in enumerate(kwargs[self.batch_key]):
             new_kwargs = kwargs.copy()
             new_kwargs[self.batch_key] = kwarg
@@ -94,7 +103,12 @@ class EngineAPIResourcePool:
         results = []
 
         for _ in tqdm(kwargs[self.batch_key]):
-            results.append(self.result_queue.get())
+            result = self.result_queue.get()
+
+            if callback:
+                callback(*result)
+
+            results.append(result)
 
         return [result for _, result in sorted(results, key=lambda x: x[0])]
 

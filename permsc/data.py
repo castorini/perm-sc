@@ -1,9 +1,10 @@
-__all__ = ['Item', 'RankingExample', 'Message', 'RankingDataset', 'MathSortDataset', 'GSM8KSortDataset', 'WordSortDataset']
+__all__ = ['Item', 'RankingExample', 'Message', 'RankingDataset', 'MathSortDataset', 'GSM8KSortDataset',
+           'WordSortDataset', 'CountrySortDataset']
 
 from copy import deepcopy
 import json
 from pathlib import Path
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Iterable
 
 import nltk
 import numpy as np
@@ -33,7 +34,17 @@ class RankingExample(BaseModel):
         metadata = self.metadata.copy()
         metadata['orig_indices'] = key
 
+        # Update current permutation
+        new_perm = np.empty(len(self.hits[key]), dtype=int)
+        sort_idx = np.argsort(metadata['current_permutation'][key])
+        new_perm[sort_idx] = np.arange(key.stop - key.start)
+        metadata['current_permutation'] = new_perm
+
         return RankingExample(hits=deepcopy(self.hits[key]), query=deepcopy(self.query), metadata=metadata)
+
+    @property
+    def current_permutation(self) -> np.ndarray:
+        return self.metadata.get('current_permutation', np.arange(len(self.hits)))
 
     def to_pyserini_dict(self) -> Dict[str, Any]:
         return {
@@ -48,8 +59,16 @@ class RankingExample(BaseModel):
 
         return cls(hits=hits, query=query)
 
-    def randomize_order(self, standardize: bool = False) -> np.ndarray:
-        perm_mask = np.random.permutation(len(self.hits))
+    def sort_by(self, key, standardize: bool = False, reverse: bool = False) -> np.ndarray:
+        perm_mask = np.argsort([key(hit) for hit in self.hits])
+
+        if reverse:
+            perm_mask = perm_mask[::-1]
+
+        return self.randomize_order(perm_mask=perm_mask, standardize=standardize)
+
+    def randomize_order(self, standardize: bool = False, perm_mask: np.ndarray = None) -> np.ndarray:
+        perm_mask = np.random.permutation(len(self.hits)) if perm_mask is None else perm_mask
         self.metadata['current_permutation'] = self.metadata.get('current_permutation', np.arange(len(self.hits)))[perm_mask]
         self.hits = np.array(self.hits, dtype=object)[perm_mask].tolist()
         perm_mask = self.metadata['current_permutation']
@@ -58,6 +77,13 @@ class RankingExample(BaseModel):
             self.metadata['current_permutation'] = np.arange(len(self.hits))
 
         return perm_mask
+
+    def split(self, split_size: int) -> Iterable['RankingExample']:
+        for i in range(0, len(self), split_size):
+            try:
+                yield self[i:i + split_size]
+            except ValueError:
+                break
 
     def restore_order(self):
         perm_mask = self.metadata.get('current_permutation', np.arange(len(self.hits)))
@@ -163,6 +189,36 @@ class WordSortDataset(RankingDataset):
         hits = [Item(content=word, score=1 / (idx + 1)) for idx, word in enumerate(words)]
 
         return RankingExample(hits=hits)
+
+
+class CountrySortDataset(RankingDataset):
+    def __init__(self, path: str):
+        df = pd.read_csv(path, sep='\t', quoting=3, escapechar='\\')
+        self.dfs = [x[1] for x in df.groupby('key')]
+
+    def __len__(self):
+        return len(self.dfs)
+
+    def load_example(self, idx: int) -> RankingExample:
+        df = self.dfs[idx]
+        hits = []
+        keys = ['percentage', 'number', 'year', 'rate']
+
+        value = json.loads(df['value'].iloc[0])
+        rel_key = None
+
+        for key in keys:
+            if key in value:
+                rel_key = key
+                break
+
+        assert rel_key is not None, f'No relevant key found in {value}'
+
+        for _, row in df.iterrows():
+            value = json.loads(row['value'])
+            hits.append(Item(content=row['country'], score=value[rel_key], metadata=dict(prompt=row['prompt'])))
+
+        return RankingExample(hits=sorted(hits, key=lambda x: x.score, reverse=True))
 
 
 class Message(BaseModel):
