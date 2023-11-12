@@ -1,5 +1,5 @@
 __all__ = ['Item', 'RankingExample', 'Message', 'RankingDataset', 'MathSortDataset', 'GSM8KSortDataset',
-           'WordSortDataset', 'CountrySortDataset']
+           'WordSortDataset', 'CountrySortDataset', 'WordsDataset']
 
 from copy import deepcopy
 import json
@@ -187,6 +187,21 @@ class WordSortDataset(RankingDataset):
     def load_example(self, idx: int) -> RankingExample:
         words = sorted(self.df.iloc[idx].word_samples)
         hits = [Item(content=word, score=1 / (idx + 1)) for idx, word in enumerate(words)]
+
+        return RankingExample(hits=hits)
+
+
+class WordsDataset(RankingDataset):
+    def __init__(self, path: str):
+        df = pd.read_csv(path, sep='\t', quoting=3, escapechar='\\')
+        self.df = df
+
+    def __len__(self):
+        return 1
+
+    def load_example(self, idx: int) -> RankingExample:
+        words = self.df.words.tolist()
+        hits = [Item(content=word) for idx, word in enumerate(words)]
 
         return RankingExample(hits=hits)
 
