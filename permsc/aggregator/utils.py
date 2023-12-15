@@ -81,7 +81,7 @@ def cdk_graph_vertex_swap(graph: np.ndarray, i: int, j: int):
 @numba.njit
 def cdk_graph_distance(X_graph: np.ndarray, y_pred: np.ndarray) -> int:
     """
-    Computes the Conitzer-Davenport-Kalagnanam (CDK) distance (our coined term) between two graphs, defined as the
+    Computes the Conitzer-Davenport-Kalagnanam (CDK) distance between two graphs, defined as the
     weights of disagreed edges in https://cdn.aaai.org/AAAI/2006/AAAI06-099.pdf. `y_pred` should be a binary graph
     associated with the candidate aggregate ranking. `X_graph` should be a weighted directed CDK graph computed from
     :py:meth:`.graph_from_preferences`.

@@ -42,21 +42,24 @@ class RankingPromptBuilder:
 
     def extract_preferences(self, example: RankingExample, response: str) -> np.ndarray:
         """Extract a preference array from the response."""
-        ranking = {}
-        num_items = len(example)
-        orig_rankings = set(range(num_items))
+        items = [hit.content for hit in example.hits]
+        rankings = []
+        response = response.lower()
 
-        for m in re.finditer(r'\d+', response):
-            rank = min(num_items - 1, int(m.group(0)) - self.rank_offset)
+        for word in items:
+            word = word.lower()
 
-            try:
-                orig_rankings.remove(rank)
-            except KeyError:
-                pass
+            if (idx := response.find(word)) != -1:
+                rankings.append(idx)
+            else:
+                rankings.append(10000)
 
-            ranking[rank] = None
+        rankings = np.array(rankings)
+        idxs = np.argsort(rankings)
+        rankings = np.empty_like(rankings)
+        rankings[idxs] = np.arange(len(rankings)) + 1
 
-        return np.array(list(ranking.keys()) + [-1] * len(orig_rankings))
+        return rankings
 
     def make_prompt(self, example: RankingExample) -> List[Message]:
         messages = self.make_prefix_prompt(example)
@@ -155,6 +158,15 @@ class SummarizationRankingPromptBuilder(RankingPromptBuilder):
 
 
 class MathSortRankingPromptBuilder(RankingPromptBuilder):
+    def extract_preferences(self, example: RankingExample, response: str) -> np.ndarray:
+        example = deepcopy(example)
+        response = response.replace(' ', '')
+
+        for hit in example.hits:
+            hit.content = hit.content.replace(' ', '')
+
+        return super().extract_preferences(example, response)
+
     def make_prefix_prompt(self, example: RankingExample) -> List[Message]:
         num = len(example.hits)
         query = example.query.content
@@ -182,33 +194,6 @@ class MathSortRankingPromptBuilder(RankingPromptBuilder):
 
 
 class FastMathSortRankingPromptBuilder(RankingPromptBuilder):
-    def extract_preferences(self, example: RankingExample, response: str) -> np.ndarray:
-        """Extract a preference array from the response."""
-        item_map = {hit.content: idx for idx, hit in enumerate(example.hits)}
-        num_items = len(example)
-
-        ranking = {}
-        orig_rankings = set(range(num_items))
-        response = response.split('\n')[-1]
-        clean_patt = re.compile(r'[^\d\+\-\*\/\s]')
-
-        for item in response.split(','):
-            item = clean_patt.sub('', item).strip()
-
-            try:
-                rank = min(num_items - 1, item_map[item])
-            except KeyError:
-                continue
-
-            try:
-                orig_rankings.remove(rank)
-            except KeyError:
-                pass
-
-            ranking[rank] = None
-
-        return np.array(list(ranking.keys()) + [-1] * len(orig_rankings))
-
     def make_prefix_prompt(self, example: RankingExample) -> List[Message]:
         return [Message(role='system', content='You are an intelligent assistant that can evaluate and sort math expressions based on their value.')]
 

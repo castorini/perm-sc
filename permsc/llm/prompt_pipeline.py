@@ -62,7 +62,7 @@ class OpenAIPromptPipeline(PromptPipeline):
 
 
 class FastRankAPIPromptPipeline(PromptPipeline):
-    def __init__(self, prompt_builder: RankingPromptBuilder, endpoint: str = 'http://falcon:8008', model_name: str = 'llama-2-13b'):
+    def __init__(self, prompt_builder: RankingPromptBuilder, endpoint: str = 'http://falcon:8008', model_name: str = 'mistral-7b'):
         super().__init__(prompt_builder, model_name)
         self.endpoint = urllib.parse.urljoin(endpoint, f'/model/{model_name}/generate/')
 
