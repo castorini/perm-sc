@@ -4,13 +4,14 @@ from itertools import combinations, permutations
 
 import numpy as np
 from pulp import LpProblem, LpVariable, LpMinimize, lpSum
+from pulp.apis import PULP_CBC_CMD
 
 from .base import RankAggregator
 from .utils import cdk_graph_from_preferences, preferences_from_cdk_graph
 
 
 class KemenyOptimalAggregator(RankAggregator):
-    def solve_from_graph(self, cdk_graph: np.ndarray):
+    def solve_from_graph(self, cdk_graph: np.ndarray, verbose: bool = True):
 
         # Create the LP problem
         prob = LpProblem('KemenyOptimalAggregator', LpMinimize)
@@ -36,7 +37,10 @@ class KemenyOptimalAggregator(RankAggregator):
 
             prob += (vars_dict[(i, j)] + vars_dict[(j, k)] + vars_dict[(k, i)] >= 1, f'Transitivity x{i},{j},{k}')
 
-        prob.solve()
+        if verbose:
+            prob.solve()
+        else:
+            prob.solve(PULP_CBC_CMD(msg=0))
 
         # Extract the preferences from the solution
         y_graph = np.zeros((n, n), dtype=int)
@@ -48,6 +52,6 @@ class KemenyOptimalAggregator(RankAggregator):
 
         return preferences_from_cdk_graph(y_graph)
 
-    def aggregate(self, preferences: np.ndarray) -> np.ndarray:
+    def aggregate(self, preferences: np.ndarray, verbose: bool = True) -> np.ndarray:
         cdk_graph = cdk_graph_from_preferences(preferences)
-        return self.solve_from_graph(cdk_graph)
+        return self.solve_from_graph(cdk_graph, verbose)
